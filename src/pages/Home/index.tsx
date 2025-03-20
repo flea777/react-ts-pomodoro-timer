@@ -5,7 +5,7 @@ import * as zod from 'zod'
 import { useEffect, useState } from 'react'
 import { differenceInSeconds } from 'date-fns'
 
-import { 
+import {
   CountdownContainer,
   FormContainer,
   HomeContainer,
@@ -32,6 +32,7 @@ interface Cycle {
   minutesAmount: number
   startDate: Date
   interruptedDate?: Date
+  finishedDate?: Date
 }
 
 export const Home = () => {
@@ -48,24 +49,45 @@ export const Home = () => {
   })
 
   const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
+  const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0
 
   useEffect(() => {
     let interval: number;
 
     if (activeCycle) {
-      interval = setInterval(() =>{
-        setAmountsSecondPassed(differenceInSeconds(new Date(), activeCycle.startDate))
+      interval = setInterval(() => {
+        const secondsDifference = differenceInSeconds(
+          new Date(),
+          activeCycle.startDate
+        )
+
+        if (secondsDifference >= totalSeconds) {
+          setCycles(state =>
+            state.map((cycle) => {
+              if (cycle.id === activeCycleId) {
+                return { ...cycle, finishedDate: new Date() }
+              } else {
+                return cycle
+              }
+            }))
+
+            setAmountsSecondPassed(totalSeconds)
+            clearInterval(interval)
+        } else {
+          setAmountsSecondPassed(secondsDifference)
+        }
+
       }, 1000)
     }
 
     return () => {
       clearInterval(interval)
     }
-  }, [activeCycle])
+  }, [activeCycle, totalSeconds, activeCycleId])
 
   function handleCreateNewCycle(data: NewCycleFormData) {
     const id = String(new Date().getTime())
-    
+
     const newCycle: Cycle = {
       id,
       task: data.task,
@@ -81,9 +103,9 @@ export const Home = () => {
   }
 
   function handleInterruptCycle() {
-    
-    setCycles(
-      cycles.map((cycle) => {
+
+    setCycles(state =>
+      state.map((cycle) => {
         if (cycle.id === activeCycleId) {
           return { ...cycle, interruptedDate: new Date() }
         } else {
@@ -95,7 +117,6 @@ export const Home = () => {
     setactiveCycleId(null)
   }
 
-  const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0
   const currentSeconds = activeCycle ? totalSeconds - amountsSecondPassed : 0
 
   const minutesAmount = Math.floor(currentSeconds / 60)
@@ -120,8 +141,8 @@ export const Home = () => {
       <form onSubmit={handleSubmit(handleCreateNewCycle)} action="">
         <FormContainer>
           <label htmlFor="task">Vou trabalhar em</label>
-          <TaskInput 
-            id="task" 
+          <TaskInput
+            id="task"
             placeholder="Dê um nome para seu projeto"
             list="task-suggestions"
             {...register('task')}
@@ -136,9 +157,9 @@ export const Home = () => {
           </datalist>
 
           <label htmlFor="minutesAmount">durante</label>
-          <MinutesAmountInput 
-            type="number" 
-            id="minutesAmount" 
+          <MinutesAmountInput
+            type="number"
+            id="minutesAmount"
             placeholder="00"
             step={5}
             min={5}
